@@ -1,42 +1,38 @@
-# Rust/codex-rs
+# Repository Guidelines
 
-In the codex-rs folder where the rust code lives:
+This repository hosts Codex CLI, a monorepo with a Rust workspace (`codex-rs/`) and a thin Node wrapper (`codex-cli/`). Use Rust for core development and pnpm/Prettier for JS/docs hygiene.
 
-- Crate names are prefixed with `codex-`. For examole, the `core` folder's crate is named `codex-core`
-- When using format! and you can inline variables into {}, always do that.
-- Never add or modify any code related to `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` or `CODEX_SANDBOX_ENV_VAR`.
-  - You operate in a sandbox where `CODEX_SANDBOX_NETWORK_DISABLED=1` will be set whenever you use the `shell` tool. Any existing code that uses `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` was authored with this fact in mind. It is often used to early exit out of tests that the author knew you would not be able to run given your sandbox limitations.
-  - Similarly, when you spawn a process using Seatbelt (`/usr/bin/sandbox-exec`), `CODEX_SANDBOX=seatbelt` will be set on the child process. Integration tests that want to run Seatbelt themselves cannot be run under Seatbelt, so checks for `CODEX_SANDBOX=seatbelt` are also often used to early exit out of tests, as appropriate.
+## Project Structure & Module Organization
+- `codex-rs/`: Rust workspace with crates (e.g., `cli`, `core`, `exec`, `tui`). Entry binary is `codex`.
+- `codex-cli/`: Node package exposing `codex` via `bin/codex.js`.
+- `docs/`, `scripts/`, `.github/`: Documentation, utility scripts, CI.
+- Keep changes within appropriate crates; prefer small, focused modules.
 
-Before finalizing a change to `codex-rs`, run `just fmt` (in `codex-rs` directory) to format the code and `just fix -p <project>` (in `codex-rs` directory) to fix any linter issues in the code. Additionally, run the tests:
-1. Run the test for the specific project that was changed. For example, if changes were made in `codex-rs/tui`, run `cargo test -p codex-tui`.
-2. Once those pass, if any changes were made in common, core, or protocol, run the complete test suite with `cargo test --all-features`.
+## Build, Test, and Development Commands
+- Build (Rust): `cd codex-rs && cargo build`
+- Run TUI: `cd codex-rs && cargo run --bin codex -- tui`
+- One-off exec: `cd codex-rs && cargo run --bin codex -- exec "your task"`
+- Format (Rust): `cd codex-rs && cargo fmt -- --config imports_granularity=Item`
+- Lint (Rust): `cd codex-rs && cargo clippy --tests`
+- Prettier (repo): `pnpm run format` or `pnpm run format:fix`
 
-## TUI style conventions
+## Coding Style & Naming Conventions
+- Rust: follow `rustfmt` (workspace config); avoid `unwrap`/`expect` (clippy denies).
+- Naming: `snake_case` for functions/vars, `PascalCase` for types/traits, `SCREAMING_SNAKE_CASE` for consts.
+- JS/docs: Prettier 3.x; keep files small and focused.
 
-See `codex-rs/tui/styles.md`.
+## Testing Guidelines
+- Framework: Rust `cargo test` within `codex-rs/`.
+- Write unit tests near code (`src/*` and `tests/*`).
+- Prefer deterministic tests; avoid network unless mocked.
+- Run locally: `cd codex-rs && cargo test` (ensure lints and fmt pass).
 
-## TUI code conventions
+## Commit & Pull Request Guidelines
+- Use conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, etc.
+- PRs include: clear description, rationale, and links to issues; tests for core logic; screenshots for TUI changes when helpful.
+- Before pushing: `cargo test && cargo clippy --tests && cargo fmt -- --config imports_granularity=Item` and `pnpm run format`.
 
-- Use concise styling helpers from ratatui’s Stylize trait.
-  - Basic spans: use "text".into()
-  - Styled spans: use "text".red(), "text".green(), "text".magenta(), "text".dim(), etc.
-  - Prefer these over constructing styles with `Span::styled` and `Style` directly.
-  - Example: patch summary file lines
-    - Desired: vec!["  └ ".into(), "M".red(), " ".dim(), "tui/src/app.rs".dim()]
-
-## Snapshot tests
-
-This repo uses snapshot tests (via `insta`), especially in `codex-rs/tui`, to validate rendered output. When UI or text output changes intentionally, update the snapshots as follows:
-
-- Run tests to generate any updated snapshots:
-  - `cargo test -p codex-tui`
-- Check what’s pending:
-  - `cargo insta pending-snapshots -p codex-tui`
-- Review changes by reading the generated `*.snap.new` files directly in the repo, or preview a specific file:
-  - `cargo insta show -p codex-tui path/to/file.snap.new`
-- Only if you intend to accept all new snapshots in this crate, run:
-  - `cargo insta accept -p codex-tui`
-
-If you don’t have the tool:
-- `cargo install cargo-insta`
+## Maintenance & Sync
+- Upstream is tracked via local `fork` branch. Keep your `main` up to date with:
+  - `./scripts/sync-upstream.sh` (rebase default; see `SYNC.md`).
+- Configuration tips: see `codex-rs/config.md` for `RUST_LOG`, paths, and runtime settings.
