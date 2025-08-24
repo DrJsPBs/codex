@@ -41,8 +41,11 @@ impl EventProcessor for EventProcessorWithJsonOutput {
 
     fn process_event(&mut self, event: Event) -> CodexStatus {
         match event.msg {
+            // Emit streaming events as JSON so downstream adapters can provide incremental SSE.
             EventMsg::AgentMessageDelta(_) | EventMsg::AgentReasoningDelta(_) => {
-                // Suppress streaming events in JSON mode.
+                if let Ok(line) = serde_json::to_string(&event) {
+                    println!("{line}");
+                }
                 CodexStatus::Running
             }
             EventMsg::TaskComplete(TaskCompleteEvent { last_agent_message }) => {
